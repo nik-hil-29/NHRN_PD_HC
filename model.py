@@ -545,7 +545,7 @@ class NHRN(nn.Module):
 
         #  Classification head ─────────────────────────────────────────
         self.classifier = nn.Sequential(
-            nn.Linear(res_in, 32),
+            nn.Linear(16, 32),
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(32, 16),
@@ -609,8 +609,8 @@ class NHRN(nn.Module):
         Ycombined = torch.cat([Yemergent, Ycrystal], dim=-1)  # (B, 48)
         Yres, _   = self.resonance(Ycombined)   # (B, 16)
 
-        # Use full combined for classification (richer signal)
-        out = self.classifier(Ycombined)    # (B, 1)
+        # Classification uses the resonance-refined representation.
+        out = self.classifier(Yres)         # (B, 1)
         return torch.sigmoid(out).squeeze(-1)  # (B,)
 
     def count_parameters(self):
