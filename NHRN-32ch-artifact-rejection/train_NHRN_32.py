@@ -5,12 +5,6 @@ site's additional channels (UCSD's EXG1-8, UNM's VEOG, Iowa's Fp1/Fp2
 proxy) are used exclusively for ICA artifact rejection upstream, never as
 model input. There is no regional-aggregate block in this variant.
 
-Default usage (main(), see below) trains ONE model JOINTLY on all three
-sites combined, with a 70:15:15 subject-level train/val/test split drawn
-across all three sites together, and site-adversarial training enabled
-(train_joint_all_sites()). The per-site independent validation reported in
-R2R Table 3 (Reviewer 2, Comment 4) remains available via
-train_per_site_independent().
 
 The split is performed at subject level, separately within HC and PD subjects,
 so windows from the same participant never appear in multiple splits.
@@ -49,8 +43,8 @@ from sklearn.metrics import (
 )
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 
-# from .model_32 import binary_cross_entropy_loss, build_model, build_optimizer
-# from .preprocessing_32 import load_preprocessed
+from .model_32 import binary_cross_entropy_loss, build_model, build_optimizer
+from .preprocessing_32 import load_preprocessed
 
 
 SEED = 42
@@ -74,24 +68,6 @@ N_SITES = len(SITE_TO_IDX)
 
 
 class EEGDataset(Dataset):
-    """
-    Preprocessed EEG windows with binary HC/PD labels.
-
-    Memory-efficient by design: ``x`` (and ``y``/``sites``) may be the FULL
-    dataset array (optionally a memmap opened via
-    ``preprocessing.load_preprocessed(..., mmap=True)``); ``indices`` selects
-    the subset (train/val/test/pretrain) this Dataset instance represents.
-    No subset copy of ``x`` is ever materialized — each ``__getitem__`` reads
-    and copies exactly one (32, 1024) window on demand. This avoids holding
-    the full array plus separate train/val/test copies in RAM simultaneously,
-    which is what exhausts memory on hosts with ~30 GiB RAM once UCSD+UNM+
-    Iowa are combined.
-
-    When ``sites`` is provided, ``__getitem__`` also returns an integer
-    site index (SITE_TO_IDX) as a third element, for the site-adversarial
-    auxiliary loss in train_one_epoch.
-    """
-
     def __init__(
         self,
         x: np.ndarray,
@@ -120,8 +96,6 @@ class EEGDataset(Dataset):
             sites_local = np.asarray(sites)[self.indices]
             site_keys = np.array([str(s).strip().lower() for s in sites_local])
             if self.regional_block_dropout > 0:
-                # True for UNM/Iowa (real regional-average signal in block
-                # 32:40), False for UCSD (already zero there).
                 self._has_regional_block = site_keys != 'ucsd'
             self._site_idx = np.array(
                 [SITE_TO_IDX.get(s, -1) for s in site_keys], dtype=np.int64
@@ -158,10 +132,6 @@ class EEGDataset(Dataset):
                 and x.shape[0] > REGIONAL_BLOCK_START
                 and torch.rand(1).item() < self.regional_block_dropout
             ):
-                # Zero the regional-aggregate block for this UNM/Iowa sample
-                # so the network can't use "block populated => not UCSD" as
-                # a site shortcut; the rest of the time it still sees the
-                # real regionally-averaged signal.
                 x[REGIONAL_BLOCK_START:] = 0.0
         if self._site_idx is not None:
             site = torch.tensor(int(self._site_idx[index]), dtype=torch.long)
