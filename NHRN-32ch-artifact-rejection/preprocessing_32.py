@@ -4,11 +4,6 @@ preprocessing_32.py
 Unified UCSD (ds002778) + Iowa (IowaDataset) + UNM (UNMDataset) EEG
 preprocessing for NHRN PD classification — 32-COMMON-CHANNEL variant.
 
-This variant outputs ONLY the 32 scalp electrodes common to all three sites
-(no 8-channel regional-aggregation block). It was built to validate that
-NHRN's reported performance does not depend on the 8-channel regional-
-aggregation scheme, nor on resolving the exact identity of UCSD's EXG1-8
-channels — see R2R response, Reviewer 2 Comment 4.
 
 Channel handling (verified empirically / confirmed by dataset curator):
   - CANONICAL_SCALP_CHANNELS: the same 32 electrodes present in all three
@@ -35,11 +30,6 @@ File formats handled directly (no conversion step required):
   UNM   : MATLAB v7.3 (HDF5) aggregated .mat files, one for ON-medication
           session, one for OFF-medication session (see UNM_ON_MAT/UNM_OFF_MAT)
 
-UPDRS-III:
-  UCSD : hard-coded ON/OFF table (paper Table 2)
-  Iowa : merged from DataIowa.xlsx ('Rest' column = subject ID)
-  UNM  : merged from IMPORT_ME_REST.xlsx (' UPDRS ON'/' UPDRS OFF' columns,
-         keyed by PD_ID); no UPDRS for HC (matched-control demographics only)
 
 Outputs (saved to ./preprocessed_32/):
   segments.npy    — shape (N, 32, 1024)  float32
@@ -98,15 +88,7 @@ mne.set_log_level("WARNING")
 FS          = 512
 WIN_SEC     = 2
 WIN_SAMPLES = FS * WIN_SEC
-OVERLAP     = 0.25  # was 0.5: 50% overlap creates many near-duplicate windows
-                     # per subject (adjacent windows share half their raw
-                     # samples), which makes memorization easier for a
-                     # 1.16M-parameter model against only ~21-30 training
-                     # subjects per site. Reducing overlap trades fewer
-                     # windows for less redundant, more independent training
-                     # examples. Requires re-running preprocess_all() —
-                     # existing segments.npy files were generated at 50%
-                     # overlap and are not affected by only changing this file.
+OVERLAP     = 0.5  
 N_CHANNELS  = 32  # 32-channel common-montage variant (no regional-aggregation block)
 
 ARTIFACT_PEAK_TO_PEAK_UV = 1000.0
@@ -766,12 +748,12 @@ def load_preprocessed(out_dir: str = './preprocessed_32', mmap: bool = False) ->
 
 if __name__ == '__main__':
     preprocess_all(
-        ucsd_root="/kaggle/input/datasets/nikhilkushwaha2529/pd-ucsd/ds002778",
-        iowa_root="/kaggle/input/datasets/nikhilkushwaha2529/pd-unm-iowa/Data and Code/Dataset/IowaDataset/Raw data",
-        iowa_updrs_xlsx="/kaggle/input/datasets/nikhilkushwaha2529/pd-unm-iowa/Data and Code/Dataset/IowaDataset/DataIowa.xlsx",
-        unm_on_mat="/kaggle/input/datasets/nikhilkushwaha2529/pd-unm-iowa/Data and Code/Dataset/UNMDataset/Organized_data/EEG_Jim_rest_Unsegmented_WithAllChannels.mat",
-        unm_off_mat="/kaggle/input/datasets/nikhilkushwaha2529/pd-unm-iowa/Data and Code/Dataset/UNMDataset_OFF/Organized_data/EEG_Jim_rest_OFF_Unsegmented_WithAllChannels.mat",
-        unm_updrs_xlsx="/kaggle/input/datasets/nikhilkushwaha2529/pd-unm-iowa/Data and Code/Dataset/UNMDataset_OFF/IMPORT_ME_REST.xlsx",
+        ucsd_root="datasets/nikhilkushwaha2529/pd-ucsd/ds002778",
+        iowa_root="datasets/nikhilkushwaha2529/pd-unm-iowa/Data and Code/Dataset/IowaDataset/Raw data",
+        iowa_updrs_xlsx="datasets/nikhilkushwaha2529/pd-unm-iowa/Data and Code/Dataset/IowaDataset/DataIowa.xlsx",
+        unm_on_mat="datasets/nikhilkushwaha2529/pd-unm-iowa/Data and Code/Dataset/UNMDataset/Organized_data/EEG_Jim_rest_Unsegmented_WithAllChannels.mat",
+        unm_off_mat="datasets/nikhilkushwaha2529/pd-unm-iowa/Data and Code/Dataset/UNMDataset_OFF/Organized_data/EEG_Jim_rest_OFF_Unsegmented_WithAllChannels.mat",
+        unm_updrs_xlsx="datasets/nikhilkushwaha2529/pd-unm-iowa/Data and Code/Dataset/UNMDataset_OFF/IMPORT_ME_REST.xlsx",
         out_dir="./preprocessed_32",
     )
 
