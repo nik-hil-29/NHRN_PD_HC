@@ -380,25 +380,6 @@ class CognitiveLoadBalancer(nn.Module):
 # ──────────────────────────────────────────────────────────────────────────────
 
 class MemoryConsolidation(nn.Module):
-    """
-    GRU over the sequence + gated state update.
-
-    ``use_gru=False`` (the DEFAULT as of this revision) swaps the sequential
-    GRU pass for a fast, non-recurrent projection of the pooled sequence
-    (Linear + Swish), producing the same (B, hidden) output shape so nothing
-    downstream needs to change. This was flipped from True to False after
-    repeated training runs on the combined UCSD+Iowa+UNM dataset showed
-    persistent overfitting (train accuracy climbing past 80% while
-    validation stayed near chance) that survived normalization fixes
-    (BatchNorm1d -> GroupNorm), regularization tuning, and LR/optimizer
-    changes — narrowing the cause to the GRU itself: it was ~42% of the
-    fused feature vector's dimensionality and the only sequential
-    (non-parallelizable) component in the network, well-suited to
-    memorizing subject-specific temporal patterns rather than generalizable
-    spectral biomarkers on a dataset this size (~74-90 effectively
-    independent training subjects for a 1.16M-parameter model). Set
-    ``use_gru=True`` to reproduce the paper's exact GRU-based definition.
-    """
     def __init__(self, in_dim, hidden=128, use_gru: bool = False):
         super().__init__()
         self.use_gru = use_gru
